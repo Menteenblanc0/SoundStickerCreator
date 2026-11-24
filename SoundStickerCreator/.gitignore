@@ -1,0 +1,28 @@
+__pycache__/
+*.py[cod]
+.venv/
+node_modules/
+build/
+dist/
+*.spec
+*.session
+
+# Configuración local, credenciales y archivos de sesión
+.env
+.env.*
+!.env.example
+auth/
+auth_info_baileys/
+sessions/
+creds.json
+*.pem
+*.key
+
+# Artefactos de distribución y archivos locales
+*.exe
+*.msi
+*.zip
+*.bundle
+SHA256SUMS.txt
+.DS_Store
+Thumbs.db

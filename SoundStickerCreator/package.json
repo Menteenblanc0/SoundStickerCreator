@@ -1,0 +1,10 @@
+{
+  "name": "sound-sticker-creator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sticker:send": "node packaging/run-cli.mjs send",
+    "sticker:receive": "node packaging/run-cli.mjs receive"
+  }
+}

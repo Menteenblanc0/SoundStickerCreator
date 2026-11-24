@@ -1,0 +1,88 @@
+name: Pruebas y compilación
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publicar la versión 0.1.0 como release
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.3'
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: python -m pip install -r requirements.txt
+      - run: npm ci --prefix transport --ignore-scripts --omit=optional
+      - run: python -m unittest discover -s tests -v
+      - run: npm test --prefix transport
+      - run: npm audit --prefix transport --omit=dev --omit=optional
+  build:
+    needs: verify
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.3'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.4'
+          cache: false
+      - run: sudo apt-get update && sudo apt-get install -y nsis
+      - run: python packaging/build_windows.py
+      - run: cd dist && sha256sum -c SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SoundStickerCreator-win-x64
+          path: dist/
+  smoke-windows:
+    needs: build
+    runs-on: windows-2025
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: SoundStickerCreator-win-x64
+          path: dist
+      - shell: pwsh
+        run: |
+          Expand-Archive dist/SoundStickerCreator-0.1.0-win-x64-portable.zip -DestinationPath portable
+          Push-Location portable/SoundStickerCreator
+          runtime/python.exe -c "from PIL import Image; import tkinter; from tkinterdnd2 import TkinterDnD; t=TkinterDnD.Tk(); t.destroy(); print(Image.__version__)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          runtime/python.exe app.py --help
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          tools/node.exe --input-type=module -e "import('./transport/protocol.mjs')"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+          $installer = Start-Process dist/SoundStickerCreator-0.1.0-win-x64-setup.exe -ArgumentList '/S' -PassThru -Wait
+          if ($installer.ExitCode -ne 0) { exit $installer.ExitCode }
+          $program = Join-Path $env:LOCALAPPDATA 'Programs/Sound Sticker Creator/Sound Sticker Creator.exe'
+          if (!(Test-Path $program)) { throw 'Falta el ejecutable instalado' }
+  release:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    needs: smoke-windows
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: SoundStickerCreator-win-x64
+          path: dist
+      - run: gh release create v0.1.0 dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

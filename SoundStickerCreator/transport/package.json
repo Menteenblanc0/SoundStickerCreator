@@ -1,0 +1,16 @@
+{
+  "name": "sound-sticker-transport",
+  "version": "0.1.0",
+  "scripts": {
+    "test": "node --test",
+    "sticker:send": "node cli.mjs send"
+  },
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "music-metadata": "11.16.1",
+    "protobufjs": "7.6.6",
+    "qrcode-terminal": "0.12.0"
+  }
+}
